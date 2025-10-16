@@ -437,8 +437,10 @@ async function scrapePlayerProfile(page, playerUrl, processedUrls) {
     const { playerData, transfers } = result;
 
     // Filter professional transfers
+    // Keep any transfer where they JOINED a senior professional club
+    // (even if coming from youth/B team - we track career, not just transfers)
     const professionalTransfers = transfers.filter(
-      (t) => !isYouthTeam(t.fromClub) && !isYouthTeam(t.toClub)
+      (t) => t.toClub && !isYouthTeam(t.toClub)
     );
 
     professionalTransfers.sort((a, b) => {
