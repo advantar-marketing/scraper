@@ -14,7 +14,14 @@ COPY package*.json ./
 RUN npm ci --only=production
 COPY . .
 
+# Create /data directory and copy clubs.json there
+RUN mkdir -p /data
+COPY clubs.json /data/clubs.json
+
 ENV NODE_ENV=production
+ENV CLUBS_FILE=/data/clubs.json
+ENV OUTPUT_FILE=/data/players.json
+ENV ERROR_LOG_FILE=/data/errors.json
 
 CMD ["node", "index.js"]
 
