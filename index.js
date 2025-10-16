@@ -659,7 +659,7 @@ async function scrapeSquad(page, squadUrl, processedUrls, output) {
               `  ⚠️  File size: ${status.fileSize}MB - Consider splitting soon!`
             );
           }
-          await sleep(30000);
+          await sleep(10000);
         }
       } catch (err) {
         console.error(`  ❌ Error on player ${i + 1}: ${err.message}`);
