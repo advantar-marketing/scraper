@@ -7,8 +7,8 @@ const http = require("http");
 puppeteer.use(StealthPlugin());
 
 // Configuration
-const OUTPUT_FILE = process.env.OUTPUT_FILE || "/data/players.json";
-const ERROR_LOG_FILE = process.env.ERROR_LOG_FILE || "/data/errors.json";
+const OUTPUT_FILE = process.env.OUTPUT_FILE || "players.json";
+const ERROR_LOG_FILE = process.env.ERROR_LOG_FILE || "errors.json";
 const PORT = process.env.PORT || 3000;
 const MAX_RETRIES = 3; // Reduced - we log errors instead of blocking
 const ERROR_COOLDOWN = 30 * 1000; // 30 seconds instead of 5 minutes
@@ -695,7 +695,7 @@ async function main() {
   );
 
   // Load clubs.json
-  const CLUBS_FILE = process.env.CLUBS_FILE || "clubs.json";
+  const CLUBS_FILE =  "clubs.json";
   console.log(`📂 Loading clubs from: ${CLUBS_FILE}\n`);
   const clubs = await fs.readJson(CLUBS_FILE);
 
