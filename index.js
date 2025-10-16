@@ -36,6 +36,21 @@ async function logError(type, url, error, context = {}) {
   } catch {}
 }
 
+// Get file size in MB
+function getFileSizeMB(filePath) {
+  try {
+    const stats = require("fs").statSync(filePath);
+    return (stats.size / (1024 * 1024)).toFixed(2);
+  } catch (error) {
+    return 0;
+  }
+}
+
+// Update file size in status
+function updateFileSize() {
+  status.fileSize = getFileSizeMB(OUTPUT_FILE);
+}
+
 // Status tracking
 let status = {
   processed: 0,
@@ -44,6 +59,7 @@ let status = {
   lastPlayer: null,
   startedAt: Date.now(),
   outputFile: OUTPUT_FILE,
+  fileSize: 0,
 };
 
 // Status server
@@ -53,12 +69,14 @@ http
       if (req.url === "/status") {
         const exists = await fs.pathExists(OUTPUT_FILE);
         const size = exists ? (await fs.stat(OUTPUT_FILE)).size : 0;
+        updateFileSize(); // Update file size in status
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
             ...status,
             fileExists: exists,
             sizeBytes: size,
+            sizeMB: status.fileSize,
             uptime: Date.now() - status.startedAt,
           })
         );
@@ -628,12 +646,19 @@ async function scrapeSquad(page, squadUrl, processedUrls, output) {
           await fs.writeJson(OUTPUT_FILE, output, { spaces: 2 });
           status.processed++;
           status.lastPlayer = playerData.customId;
+          updateFileSize(); // Update file size after each player
         }
 
         await sleep(3000 + Math.random() * 2000);
 
         if ((i + 1) % 10 === 0) {
           console.log(`  💤 Processed 10 players, cooling down for 30s...`);
+          updateFileSize();
+          if (status.fileSize > 50) {
+            console.log(
+              `  ⚠️  File size: ${status.fileSize}MB - Consider splitting soon!`
+            );
+          }
           await sleep(30000);
         }
       } catch (err) {
@@ -695,7 +720,7 @@ async function main() {
   );
 
   // Load clubs.json
-  const CLUBS_FILE =  "clubs.json";
+  const CLUBS_FILE = "clubs.json";
   console.log(`📂 Loading clubs from: ${CLUBS_FILE}\n`);
   const clubs = await fs.readJson(CLUBS_FILE);
 
@@ -728,9 +753,11 @@ async function main() {
   await browser.close();
 
   console.log("\n✅ Scraping complete!");
+  updateFileSize();
   console.log(`   Total unique players: ${Object.keys(output.players).length}`);
   console.log(`   Total processed: ${status.processed}`);
   console.log(`   Total errors: ${status.errors}`);
+  console.log(`   File size: ${status.fileSize}MB`);
   console.log(`   Output: ${OUTPUT_FILE}`);
 
   if (status.errors > 0) {
