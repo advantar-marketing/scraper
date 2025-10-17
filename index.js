@@ -295,6 +295,7 @@ function isYouthTeam(clubName) {
   const lower = clubName.toLowerCase();
   return (
     lower.includes(" u18") ||
+    lower.includes(" u17") ||
     lower.includes(" u19") ||
     lower.includes(" u21") ||
     lower.includes(" u23") ||
@@ -556,7 +557,7 @@ async function scrapeSquad(page, squadUrl, processedUrls, output) {
     await retryOperation(
       async () => {
         await page.goto(squadUrl, {
-          waitUntil: "networkidle2",
+          waitUntil: "domcontentloaded",
           timeout: PAGE_LOAD_TIMEOUT,
         });
         await sleep(2000);
@@ -622,6 +623,9 @@ async function scrapeSquad(page, squadUrl, processedUrls, output) {
 
     console.log(`  Found ${playerUrls.length} players`);
 
+    // Batch writes to reduce I/O
+    let pendingWrites = 0;
+
     for (let i = 0; i < playerUrls.length; i++) {
       const playerUrl = playerUrls[i];
       console.log(`  [${i + 1}/${playerUrls.length}]`);
@@ -642,24 +646,27 @@ async function scrapeSquad(page, squadUrl, processedUrls, output) {
             dob: playerData.dob,
             seasons: playerData.seasons,
           };
-
-          await fs.writeJson(OUTPUT_FILE, output, { spaces: 2 });
+          pendingWrites++;
+          if (pendingWrites >= 5) {
+            await fs.writeJson(OUTPUT_FILE, output, { spaces: 2 });
+            pendingWrites = 0;
+          }
           status.processed++;
           status.lastPlayer = playerData.customId;
           updateFileSize(); // Update file size after each player
         }
 
-        await sleep(3000 + Math.random() * 2000);
+        await sleep(700 + Math.random() * 1000);
 
-        if ((i + 1) % 10 === 0) {
-          console.log(`  💤 Processed 10 players, cooling down for 30s...`);
+        if ((i + 1) % 15 === 0) {
+          console.log(`  💤 Processed 15 players, cooling down for 5s...`);
           updateFileSize();
           if (status.fileSize > 50) {
             console.log(
               `  ⚠️  File size: ${status.fileSize}MB - Consider splitting soon!`
             );
           }
-          await sleep(10000);
+          await sleep(5000);
         }
       } catch (err) {
         console.error(`  ❌ Error on player ${i + 1}: ${err.message}`);
@@ -672,6 +679,11 @@ async function scrapeSquad(page, squadUrl, processedUrls, output) {
         );
         await sleep(ERROR_COOLDOWN);
       }
+    }
+    // Final flush for any pending writes
+    if (pendingWrites > 0) {
+      await fs.writeJson(OUTPUT_FILE, output, { spaces: 2 });
+      pendingWrites = 0;
     }
   } catch (err) {
     console.error(`❌ Squad error: ${err.message}`);
@@ -743,7 +755,7 @@ async function main() {
       if (!/\/plus\/1$/.test(squadUrl)) squadUrl += "/plus/1";
 
       await scrapeSquad(page, squadUrl, processedUrls, output);
-      await sleep(5000);
+      await sleep(10000);
     }
 
     console.log(`\n⏸️  Season ${seasonKey} complete. Cooling down for 60s...`);
